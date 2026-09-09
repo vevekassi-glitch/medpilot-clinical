@@ -1,14 +1,7 @@
 import "dotenv/config";
-import express from "express";
 import { createServer } from "http";
 import net from "net";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
-import { registerStorageProxy } from "./storageProxy";
-import { registerStripeWebhook } from "../stripe";
-import { appRouter } from "../routers";
-import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
+import { createApp } from "../app";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -27,28 +20,10 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
-export function createApp() {
-  const app = express();
-  // Stripe must receive the raw body before express.json() for signature verification.
-  app.use("/api/stripe/webhook", express.raw({ type: "application/json" }));
-  registerStripeWebhook(app);
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
-  registerStorageProxy(app);
-  registerOAuthRoutes(app);
-  app.use(
-    "/api/trpc",
-    createExpressMiddleware({
-      router: appRouter,
-      createContext,
-    })
-  );
-  return app;
-}
-
 async function startServer() {
   const app = createApp();
   const server = createServer(app);
+  const { serveStatic, setupVite } = await import("./vite");
   if (process.env.NODE_ENV === "development") await setupVite(app, server);
   else serveStatic(app);
 
