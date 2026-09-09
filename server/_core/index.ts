@@ -27,9 +27,8 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
-async function startServer() {
+export function createApp() {
   const app = express();
-  const server = createServer(app);
   // Stripe must receive the raw body before express.json() for signature verification.
   app.use("/api/stripe/webhook", express.raw({ type: "application/json" }));
   registerStripeWebhook(app);
@@ -44,6 +43,12 @@ async function startServer() {
       createContext,
     })
   );
+  return app;
+}
+
+async function startServer() {
+  const app = createApp();
+  const server = createServer(app);
   if (process.env.NODE_ENV === "development") await setupVite(app, server);
   else serveStatic(app);
 
@@ -53,4 +58,4 @@ async function startServer() {
   server.listen(port, () => console.log(`Server running on http://localhost:${port}/`));
 }
 
-startServer().catch(console.error);
+if (process.env.VERCEL !== "1") startServer().catch(console.error);
